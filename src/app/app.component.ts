@@ -111,7 +111,7 @@ export class AppComponent implements OnInit {
             this._currentCard.flipped = true;
             this._cardInterval = setInterval(() => {
                 this.unflipCard(this._currentCard);
-            }, 2000);
+            }, 5000);
         }
     }
 
