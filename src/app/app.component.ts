@@ -17,7 +17,7 @@ const colors = [
 })
 export class AppComponent implements OnInit {
     get gameEnded(): boolean {
-        return this._gameEnded;
+        return this._foundCouples === (this._gameCards.length / 2);
     }
 
     get gameMoves(): number {
@@ -28,15 +28,7 @@ export class AppComponent implements OnInit {
         return this._gameRunning;
     }
 
-    get disabledCards(): Array<Card> {
-        return this._gameCards.filter((card: Card) => {
-            return card.matched;
-        });
-    }
-
     private _gameRunning = false;
-    private _gameInterval: any;
-    private _gameEnded: boolean;
 
     private _gameCards: Array<Card>;
     private _gameMoves: number;
@@ -50,9 +42,6 @@ export class AppComponent implements OnInit {
     }
 
     clearIntervals() {
-        if (this._gameInterval) {
-            clearInterval(this._gameInterval);
-        }
         if (this._cardInterval) {
             clearInterval(this._cardInterval);
         }
@@ -68,7 +57,6 @@ export class AppComponent implements OnInit {
         this._gameMoves = +0;
         this._foundCouples = +0;
         this._gameRunning = true;
-        this._gameEnded = false;
         this.generateCards();
     }
 
@@ -86,45 +74,50 @@ export class AppComponent implements OnInit {
     }
 
     showCard(cardIndex: number) {
+        if (this._cardInterval) {
+            // ALREADY LOCKED
+            return;
+        }
+
         const selectedCard = this._gameCards[cardIndex];
         if (selectedCard.matched || selectedCard.flipped) {
             return;
         }
+
+        selectedCard.flipped = true;
         this._gameMoves++;
         if (this._currentCard) {
             if (this._currentCard.color === selectedCard.color) {
+                // CARD MATCH
                 this.setMatched(this._currentCard, selectedCard);
-                this.setFlipped(this._currentCard, selectedCard);
                 this._foundCouples++;
+                this._currentCard = null;
+                if (this._cardInterval) {
+                    clearInterval(this._cardInterval);
+                    this._cardInterval = null;
+                }
             } else {
-                this.setUnflipped(this._currentCard, selectedCard);
-            }
-            this._currentCard = null;
-            if (this._cardInterval) {
-                clearInterval(this._cardInterval);
-            }
-            if (this._foundCouples === (this._gameCards.length / 2)) {
-                this._gameEnded = true;
+                // CARD UNMATCH
+                const cardInterval = setInterval(() => {
+                    this.setUnflipped(this._currentCard, selectedCard);
+                    this._currentCard = null;
+                    this._cardInterval = null;
+                    clearInterval(cardInterval);
+                    this._cardInterval = null;
+                }, 2000);
+                this._cardInterval = cardInterval;
             }
         } else {
             this._currentCard = selectedCard;
             this._currentCard.flipped = true;
-            this._cardInterval = setInterval(() => {
-                this.unflipCard(this._currentCard);
-            }, 5000);
         }
-    }
-
-    unflipCard(selectedCard: Card) {
-        selectedCard.flipped = false;
-        this._currentCard = null;
-        clearInterval(this._cardInterval);
     }
 
 
     setMatched(...cards: Array<Card>) {
         cards.forEach((card: Card) => {
             card.matched = true;
+            card.flipped = true;
         });
     }
 
@@ -133,11 +126,4 @@ export class AppComponent implements OnInit {
             card.flipped = false;
         });
     }
-
-    setFlipped(...cards: Array<Card>) {
-        cards.forEach((card: Card) => {
-            card.flipped = true;
-        });
-    }
-
 }
